@@ -75,6 +75,7 @@ function doPackage {
 	generateTarFileName Curl "${SUFFIX}"
 	generateTarFileName ICU "${SUFFIX}"
 	generateTarFileName CEF "${SUFFIX}"
+	generateTarFileName mergJSON "${SUFFIX}"
 	
 	# Package up OpenSSL
 	if [ -f "${LIBPATH}/libcustomcrypto.a" ] ; then
@@ -122,6 +123,18 @@ function doPackage {
 		fi
 	fi
 
+	if [ -f "${LIBPATH}/mergJSON-x64.so" ] ; then
+		tar -cf "${mergJSON_TAR}" "${LIBPATH}/mergJSON-x64.so"
+	elif [ -f "${LIBPATH}/mergJSON-x86.so" ] ; then
+		tar -cf "${mergJSON_TAR}" "${LIBPATH}/mergJSON-x86.so"
+	elif [ -d "${LIBPATH}/mergJSON.bundle" ] ; then
+		tar -cf "${mergJSON_TAR}" "${LIBPATH}/mergJSON.bundle"
+	elif [ -d "${LIBPATH}/iOS" ] ; then
+		tar -cf "${mergJSON_TAR}" "${LIBPATH}/iOS"
+	elif [ -d "${LIBPATH}/Android" ] ; then
+		tar -cf "${mergJSON_TAR}" "${LIBPATH}/Android"
+	fi
+
 	# Compress the packages
 	if [ -f "${OpenSSL_TAR}" ] ; then
 		bzip2 -zf --best "${OpenSSL_TAR}"
@@ -134,6 +147,9 @@ function doPackage {
 	fi
 	if [ -f "${CEF_TAR}" ] ; then
 		bzip2 -zf --best "${CEF_TAR}"
+	fi
+	if [ -f "${mergJSON_TAR}" ] ; then
+		bzip2 -zf --best "${mergJSON_TAR}"
 	fi
 }
 

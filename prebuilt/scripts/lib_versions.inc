@@ -20,3 +20,4 @@ readVersion ICU
 readVersion Curl
 readVersion CEF
 readVersion CEFChromium
+readVersion mergJSON
