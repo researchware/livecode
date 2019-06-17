@@ -16,102 +16,124 @@ function buildExternal {
 
 	local CLONE_DIR="${EXTERNAL_NAME}_${EXTERNAL_HASH}_${EXTERNAL_BUILDREVISION}"
 
+	if [ "${ARCH}" == "universal" ] ; then
+		local ARCHDIR=
+	else
+		local ARCHDIR="${ARCH}"
+	fi
+
+	local LIBPATH="lib/${PLATFORM}/${ARCHDIR}/${SUBPLATFORM}"
+	
+
 	echo "Cloning ${EXTERNAL_CLONE_URL}"
-	git clone --recursive "${EXTERNAL_CLONE_URL}" "${CLONE_DIR}"
+	git clone "${EXTERNAL_CLONE_URL}" "${CLONE_DIR}"
 	if [ $? != 0 ] ; then
 		echo "    failed"
-		exit
+		exit $?
 	fi
 
 	cd "${CLONE_DIR}"
 	echo "Restting to ${EXTERNAL_HASH}"
 	git reset --hard "${EXTERNAL_HASH}"
+	git submodule sync --recursive
+	git submodule update --init --recursive
 
-	mkdir -p "${OUTPUT_DIR}/lib/${PLATFORM}/${ARCH}"
+	mkdir -p "${OUTPUT_DIR}/${LIBPATH}/${EXTERNAL_NAME}"
 
 	case "${PLATFORM}" in
 		mac)
 			echo "Building ${EXTERNAL_NAME} for Desktop"
-			xcodebuild \
+			${XCODEBUILD} \
 				-project "${EXTERNAL_NAME}.xcodeproj" \
-				-configuration $MODE \
-				-sdk $SUBPLATFORM \
+				-configuration Release \
+				-sdk ${BUILD_SUBPLATFORM} \
 				-target "${EXTERNAL_NAME}-OSX" \
 				VALID_ARCHS="${UNIVERSAL_ARCHS}" \
 				ARCHS="${UNIVERSAL_ARCHS}" \
-				CODE_SIGN_IDENTITY="LiveCode Ltd." \
+				CODE_SIGN_IDENTITY="Developer ID Application: LiveCode Ltd. (KR649NSGHP)" \
 				ONLY_ACTIVE_ARCH=NO \
 				build \
 				-UseModernBuildSystem=NO
 
-			cp -a "build/${EXTERNAL_NAME}.bundle" "${OUTPUT_DIR}/lib/${PLATFORM}/${ARCH}"
+			cp -a "build/Release/${EXTERNAL_NAME}.bundle" "${OUTPUT_DIR}/${LIBPATH}/${EXTERNAL_NAME}"
 
 			echo "Building ${EXTERNAL_NAME} for Server"
-			xcodebuild \
+			${XCODEBUILD} \
 				-project "${EXTERNAL_NAME}.xcodeproj" \
-				-configuration $MODE \
-				-sdk $SUBPLATFORM \
+				-configuration Release \
+				-sdk ${BUILD_SUBPLATFORM} \
 				-target "${EXTERNAL_NAME}-Server" \
 				VALID_ARCHS="${UNIVERSAL_ARCHS}" \
 				ARCHS="${UNIVERSAL_ARCHS}" \
-				CODE_SIGN_IDENTITY="LiveCode Ltd." \
+				CODE_SIGN_IDENTITY="Developer ID Application: LiveCode Ltd. (KR649NSGHP)" \
 				ONLY_ACTIVE_ARCH=NO \
 				build \
 				-UseModernBuildSystem=NO
 
-			cp "build/${EXTERNAL_NAME}.dylib" "${OUTPUT_DIR}/lib/${PLATFORM}/${ARCH}"
+			cp "build/Release/${EXTERNAL_NAME}.dylib" "${OUTPUT_DIR}/${LIBPATH}/${EXTERNAL_NAME}"
 			
 			;;
 		linux)
 			if [[ "${ARCH}" == "x86_64" ]]; then
 				make "${EXTERNAL_NAME}-x64.so"
-				cp "build/${EXTERNAL_NAME}-x64.so" "${OUTPUT_DIR}/lib/${PLATFORM}/${ARCH}"
+				cp "build/${EXTERNAL_NAME}-x64.so" "${OUTPUT_DIR}/${LIBPATH}/${EXTERNAL_NAME}"
 			else
 				make "${EXTERNAL_NAME}-x86.so"
-				cp "build/${EXTERNAL_NAME}-x86.so" "${OUTPUT_DIR}/lib/${PLATFORM}/${ARCH}"
+				cp "build/${EXTERNAL_NAME}-x86.so" "${OUTPUT_DIR}/${LIBPATH}/${EXTERNAL_NAME}"
 			fi
 			;;
 		android)
+			source "${BASEDIR}/scripts/android.inc"
 			# Local variables
 			export SRCROOT="${BUILDDIR}/${CLONE_DIR}/${EXTERNAL_NAME}"
-			export JCOUNT=20
-			export DEBUGGABLE_FLAG=false
-			export DEBUG_FLAG=0
-			export DSTROOT=$SRCROOT/_build/android/$MODE
-			export RAWROOT=$SRCROOT/_build/android/$MODE/assets
+			export DSTROOT=$SRCROOT/_build/android/release
+			export RAWROOT=$SRCROOT/_build/android/release/assets
+
+			local JCOUNT=20
+			local DEBUGGABLE_FLAG=false
+			local DEBUG_FLAG=0
+
+			local NDKBUILD="${ANDROID_NDK}/ndk-build"
 
 			# Build the native code components
 			export NDK_PROJECT_PATH=$DSTROOT
 			echo "Building native code components..."
-			$NDKBUILD NDK_DEBUG=$DEBUG_FLAG NDK_APP_DEBUGGABLE=$DEBUGGABLE_FLAG NDK_APPLICATION_MK=$SRCROOT/Application.mk -j $JCOUNT -s
+			$NDKBUILD APP_ABI=ANDROID_ABI NDK_DEBUG=$DEBUG_FLAG NDK_APP_DEBUGGABLE=$DEBUGGABLE_FLAG NDK_APPLICATION_MK=$SRCROOT/Application.mk -j $JCOUNT -s
 			if [ $? != 0 ]; then
 				exit $?
 			fi
 
 			mkdir -p "${OUTPUT_DIR}/lib/${PLATFORM}/${ARCH}/Android"
-			cp "${DSTROOT}/libs/${ARCH}/lib${EXTERNAL_NAME}.so" "${OUTPUT_DIR}/lib/${PLATFORM}/${ARCH}/Android/External-${ARCH}"
+			cp "${DSTROOT}/libs/${ANDROID_ABI}/lib${EXTERNAL_NAME}.so" "${OUTPUT_DIR}/${LIBPATH}/${EXTERNAL_NAME}/Android/External-${ANDROID_ABI}"
 			;;
 		ios)
 			echo "Symlinking in lclink.sh"
-			export LIVECODE_SDK_ROOT="${BUILDDIR}/${CLONE_DIR}"
-			mkdir tools
+			REPO_ROOT=$(git -C "${BUILDDIR}" rev-parse --show-toplevel)
+			mkdir -p tools
 			cd tools
-			ln -s "${BASEDIR}/../lcidlc/lclink.sh" "lclink.sh"
+			ln -sv "${REPO_ROOT}/lcidlc/lclink.sh" "lclink.sh"
+			if [ $? != 0 ]; then
+				exit $?
+			fi
 			cd ..
 
 			echo "Building ${EXTERNAL_NAME}"
-			xcodebuild \
+			${XCODEBUILD} \
 				-project "${EXTERNAL_NAME}.xcodeproj" \
-				-configuration $MODE \
-				-sdk $SUBPLATFORM_NAME \
+				-configuration Release \
+				-sdk ${BUILD_SUBPLATFORM} \
 				-target "${EXTERNAL_NAME}-iOS" \
 				VALID_ARCHS="${UNIVERSAL_ARCHS}" \
 				ARCHS="${UNIVERSAL_ARCHS}" \
-				CODE_SIGN_IDENTITY="LiveCode Ltd." \
+				CODE_SIGN_IDENTITY="Developer ID Application: LiveCode Ltd. (KR649NSGHP)" \
+				LIVECODE_SDKROOT="${BUILDDIR}/${CLONE_DIR}" \
 				build \
 				-UseModernBuildSystem=NO
 
-			unzip "binaries/${EXTERNAL_NAME}.lcext" -d "${OUTPUT_DIR}/lib/${PLATFORM}/${ARCH}"
+			if [ $? != 0 ]; then
+				exit $?
+			fi
+			unzip "binaries/${EXTERNAL_NAME}.lcext" -d "${OUTPUT_DIR}/${LIBPATH}/${EXTERNAL_NAME}"
 			;;
 	esac
 }
