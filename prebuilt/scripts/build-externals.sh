@@ -23,7 +23,8 @@ function buildExternal {
 	fi
 
 	local LIBPATH="lib/${PLATFORM}/${ARCHDIR}/${SUBPLATFORM}"
-	
+
+	cd "${BUILDDIR}"
 
 	echo "Cloning ${EXTERNAL_CLONE_URL}"
 	git clone "${EXTERNAL_CLONE_URL}" "${CLONE_DIR}"
@@ -55,6 +56,9 @@ function buildExternal {
 				build \
 				-UseModernBuildSystem=NO
 
+			if [ $? != 0 ]; then
+				exit $?
+			fi
 			cp -a "build/Release/${EXTERNAL_NAME}.bundle" "${OUTPUT_DIR}/${LIBPATH}/${EXTERNAL_NAME}"
 
 			echo "Building ${EXTERNAL_NAME} for Server"
@@ -70,7 +74,12 @@ function buildExternal {
 				build \
 				-UseModernBuildSystem=NO
 
+			if [ $? != 0 ]; then
+				exit $?
+			fi
+			
 			cp "build/Release/${EXTERNAL_NAME}.dylib" "${OUTPUT_DIR}/${LIBPATH}/${EXTERNAL_NAME}"
+			
 			
 			;;
 		linux)
@@ -80,6 +89,10 @@ function buildExternal {
 			else
 				make "${EXTERNAL_NAME}-x86.so"
 				cp "build/${EXTERNAL_NAME}-x86.so" "${OUTPUT_DIR}/${LIBPATH}/${EXTERNAL_NAME}"
+			fi
+
+			if [ $? != 0 ]; then
+				exit $?
 			fi
 			;;
 		android)
@@ -138,7 +151,7 @@ function buildExternal {
 	esac
 }
 
-cd "${BUILDDIR}"
-
 buildExternal "mergJSON" "https://github.com/montegoulding/mergjson.git"
+buildExternal "mergMarkdown" "https://github.com/montegoulding/mergmarkdown.git"
+buildExternal "blur" "https://github.com/montegoulding/blur.git"
 

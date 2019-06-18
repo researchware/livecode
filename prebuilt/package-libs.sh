@@ -50,14 +50,14 @@ function packageExternal {
 		if [ -d "${LIBPATH}/${EXTERNAL_NAME}/${EXTERNAL_NAME}.bundle" ] ; then
 			MAC_FILES+="${LIBPATH}/${EXTERNAL_NAME}/${EXTERNAL_NAME}.bundle "
 		fi
-		if [ -d "${LIBPATH}/${EXTERNAL_NAME}/${EXTERNAL_NAME}.dylib" ] ; then
+		if [ -f "${LIBPATH}/${EXTERNAL_NAME}/${EXTERNAL_NAME}.dylib" ] ; then
 			MAC_FILES+="${LIBPATH}/${EXTERNAL_NAME}/${EXTERNAL_NAME}.dylib "
 		fi
 		if [ ! -z "${MAC_FILES}" ] ; then
 			tar -cf "${EXTERNAL_TAR}" ${MAC_FILES}
 		fi
 	fi
-	
+
 	if [ -f "${EXTERNAL_TAR}" ] ; then
 		bzip2 -zf --best "${EXTERNAL_TAR}"
 	fi
@@ -158,7 +158,7 @@ function doPackage {
 		fi
 	fi
 
-	for EXTERNAL_NAME in mergJSON ; do
+	for EXTERNAL_NAME in mergJSON mergMarkdown blur; do
 		packageExternal "${EXTERNAL_NAME}" "${LIBPATH}" "${SUFFIX}"
 	done
 

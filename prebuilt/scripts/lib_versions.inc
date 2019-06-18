@@ -21,3 +21,5 @@ readVersion Curl
 readVersion CEF
 readVersion CEFChromium
 readVersion mergJSON
+readVersion mergMarkdown
+readVersion blur

@@ -6,7 +6,7 @@ IF EXIST "%LOCKPATH%" (
 	RMDIR /S /Q %LOCKPATH%
 	IF %ERRORLEVEL% NEQ 0 (
 		ECHO "Build all libs already running"
-		EXIT /B 1
+		EXIT 1
 	)
 )
 
@@ -40,6 +40,10 @@ FOR %%L IN (%PREBUILT_LIBS%) DO (
 		SET TRIPLE=!PREBUILT_LIB!-!MODE!-%ARCH%
 		ECHO Starting !TRIPLE!
 		CALL build-libs.bat !PREBUILT_LIB!
+		IF !ERRORLEVEL! NEQ 0 (
+			ECHO Building !MODE! !PREBUILT_LIB! failed
+			EXIT !ERRORLEVEL!
+		)
 	)
 
 	ECHO Finished building !PREBUILT_LIB! for all configurations
